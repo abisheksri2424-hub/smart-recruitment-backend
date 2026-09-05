@@ -1,0 +1,6 @@
+@smart_requiremnent_HostAddress = http://localhost:5215
+
+GET {{smart_requiremnent_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
