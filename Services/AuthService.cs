@@ -26,13 +26,14 @@ namespace SmartRecruitment_Project.Services
             _jwtTokenService = jwtTokenService;
             _jobSeekerRepository = jobSeekerRepository;
             _employerRepository = employerRepository;
+
             _passwordHasher = new PasswordHasher<User>();
         }
 
         public async Task<AuthResponseDto> RegisterJobSeekerAsync(
             JobSeekerRegisterDto dto)
         {
-            var email = dto.Email.Trim().ToLower();
+            var email = dto.Email.Trim().ToLowerInvariant();
 
             var emailExists =
                 await _authRepository.EmailExistsAsync(email);
@@ -64,6 +65,7 @@ namespace SmartRecruitment_Project.Services
                 UserId = createdUser.Id,
                 FullName = createdUser.Email.Split('@')[0]
             };
+
             await _jobSeekerRepository.AddProfileAsync(profile);
             await _jobSeekerRepository.SaveChangesAsync();
 
@@ -83,7 +85,7 @@ namespace SmartRecruitment_Project.Services
         public async Task<AuthResponseDto> RegisterEmployerAsync(
             EmployerRegisterDto dto)
         {
-            var email = dto.Email.Trim().ToLower();
+            var email = dto.Email.Trim().ToLowerInvariant();
 
             var emailExists =
                 await _authRepository.EmailExistsAsync(email);
@@ -116,6 +118,7 @@ namespace SmartRecruitment_Project.Services
                 CompanyName = createdUser.Email.Split('@')[0],
                 UpdatedAt = DateTime.UtcNow
             };
+
             await _employerRepository.CreateAsync(employerProfile);
 
             var token =
@@ -134,19 +137,35 @@ namespace SmartRecruitment_Project.Services
         public async Task<AuthResponseDto> LoginAsync(
             LoginDto dto)
         {
-            var email = dto.Email.Trim().ToLower();
+            var email = dto.Email.Trim().ToLowerInvariant();
+
+            Console.WriteLine("====================================");
+            Console.WriteLine("LOGIN REQUEST");
+            Console.WriteLine($"EMAIL ENTERED: {email}");
 
             var user =
                 await _authRepository.GetByEmailAsync(email);
 
+            Console.WriteLine($"USER FOUND: {user != null}");
+
             if (user == null)
             {
+                Console.WriteLine("LOGIN FAILED: User not found");
+                Console.WriteLine("====================================");
+
                 throw new UnauthorizedException(
                     "Invalid email or password.");
             }
 
+            Console.WriteLine($"DB EMAIL: {user.Email}");
+            Console.WriteLine($"ROLE: {user.Role}");
+            Console.WriteLine($"ACTIVE: {user.IsActive}");
+
             if (!user.IsActive)
             {
+                Console.WriteLine("LOGIN FAILED: Account inactive");
+                Console.WriteLine("====================================");
+
                 throw new UnauthorizedException(
                     "This account is inactive.");
             }
@@ -157,14 +176,24 @@ namespace SmartRecruitment_Project.Services
                     user.PasswordHash,
                     dto.Password);
 
+            Console.WriteLine($"PASSWORD RESULT: {result}");
+
             if (result == PasswordVerificationResult.Failed)
             {
+                Console.WriteLine("LOGIN FAILED: Password incorrect");
+                Console.WriteLine("====================================");
+
                 throw new UnauthorizedException(
                     "Invalid email or password.");
             }
 
             var token =
                 _jwtTokenService.GenerateToken(user);
+
+            Console.WriteLine("LOGIN SUCCESS");
+            Console.WriteLine($"USER: {user.Email}");
+            Console.WriteLine($"ROLE: {user.Role}");
+            Console.WriteLine("====================================");
 
             return new AuthResponseDto
             {

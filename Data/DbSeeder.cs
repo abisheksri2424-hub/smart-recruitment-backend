@@ -4,14 +4,6 @@ using SmartRecruitment_Project.Models.Enums;
 
 namespace SmartRecruitment_Project.Data
 {
-    /// <summary>
-    /// Adds a complete, repeatable demo dataset for university evaluation.
-    /// It runs only when the main demo employer account is not already present.
-    ///
-    /// Demo password for all active demo accounts: Demo@123
-    /// CV files are intentionally NOT seeded because the real CV workflow stores
-    /// both a physical file and database metadata. Upload a CV through the UI.
-    /// </summary>
     public static class DbSeeder
     {
         public const string DemoPassword = "Demo@123";
@@ -19,8 +11,53 @@ namespace SmartRecruitment_Project.Data
         public static void Seed(AppDbContext db)
         {
             const string employerEmail = "employer.demo@smart.local";
+            const string administratorEmail = "admin.smartrecruitment@gmail.com";
 
-            // Prevent duplicate demo data on every application startup.
+            // ============================================================
+            // MAKE SURE SEPARATE ADMIN ACCOUNT ALWAYS EXISTS
+            // ============================================================
+
+            var existingAdmin = db.Users
+                .FirstOrDefault(x => x.Email == administratorEmail);
+
+            if (existingAdmin == null)
+            {
+                var adminHasher = new PasswordHasher<User>();
+
+                existingAdmin = new User
+                {
+                    Email = administratorEmail,
+                    Role = UserRole.Administrator,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                existingAdmin.PasswordHash =
+                    adminHasher.HashPassword(
+                        existingAdmin,
+                        DemoPassword
+                    );
+
+                db.Users.Add(existingAdmin);
+                db.SaveChanges();
+            }
+            else
+            {
+                existingAdmin.Role = UserRole.Administrator;
+                existingAdmin.IsActive = true;
+
+                var adminHasher = new PasswordHasher<User>();
+
+                existingAdmin.PasswordHash =
+                    adminHasher.HashPassword(
+                        existingAdmin,
+                        DemoPassword
+                    );
+
+                db.SaveChanges();
+            }
+
+            // Prevent duplicate demo data.
             if (db.Users.Any(x => x.Email == employerEmail))
             {
                 return;
@@ -50,7 +87,8 @@ namespace SmartRecruitment_Project.Data
                     user.PasswordHash =
                         passwordHasher.HashPassword(
                             user,
-                            DemoPassword);
+                            DemoPassword
+                        );
 
                     return user;
                 }
@@ -63,45 +101,44 @@ namespace SmartRecruitment_Project.Data
                     employerEmail,
                     UserRole.Employer,
                     true,
-                    30);
+                    30
+                );
 
                 var arunUser = CreateUser(
                     "jobseeker.demo@smart.local",
                     UserRole.JobSeeker,
                     true,
-                    25);
+                    25
+                );
 
                 var nimalUser = CreateUser(
                     "jobseeker2.demo@smart.local",
                     UserRole.JobSeeker,
                     true,
-                    20);
+                    20
+                );
 
                 var saraUser = CreateUser(
                     "jobseeker3.demo@smart.local",
                     UserRole.JobSeeker,
                     true,
-                    18);
-
-                var adminUser = CreateUser(
-                    "admin.demo@smart.local",
-                    UserRole.Administrator,
-                    true,
-                    35);
+                    18
+                );
 
                 var inactiveUser = CreateUser(
                     "inactive.demo@smart.local",
                     UserRole.JobSeeker,
                     false,
-                    10);
+                    10
+                );
 
                 db.Users.AddRange(
                     employerUser,
                     arunUser,
                     nimalUser,
                     saraUser,
-                    adminUser,
-                    inactiveUser);
+                    inactiveUser
+                );
 
                 db.SaveChanges();
 
@@ -194,7 +231,8 @@ namespace SmartRecruitment_Project.Data
                     arunProfile,
                     nimalProfile,
                     saraProfile,
-                    inactiveProfile);
+                    inactiveProfile
+                );
 
                 db.SaveChanges();
 
@@ -232,13 +270,13 @@ namespace SmartRecruitment_Project.Data
                     "Kubernetes"
                 };
 
-                // Reuse any pre-existing normalized skill rows.
                 var skillsByNormalizedName =
                     db.Skills
                         .ToList()
                         .ToDictionary(
                             x => x.NormalizedName,
-                            StringComparer.OrdinalIgnoreCase);
+                            StringComparer.OrdinalIgnoreCase
+                        );
 
                 foreach (var skillName in requiredSkillNames)
                 {
@@ -254,6 +292,7 @@ namespace SmartRecruitment_Project.Data
                         };
 
                         db.Skills.Add(skill);
+
                         skillsByNormalizedName[normalized] = skill;
                     }
                 }
@@ -263,7 +302,8 @@ namespace SmartRecruitment_Project.Data
                 Skill SkillOf(string name)
                 {
                     return skillsByNormalizedName[
-                        name.Trim().ToUpperInvariant()];
+                        name.Trim().ToUpperInvariant()
+                    ];
                 }
 
                 // ============================================================
@@ -281,7 +321,8 @@ namespace SmartRecruitment_Project.Data
                             {
                                 JobSeekerProfileId = profile.Id,
                                 SkillId = SkillOf(skillName).Id
-                            });
+                            }
+                        );
                     }
                 }
 
@@ -295,7 +336,8 @@ namespace SmartRecruitment_Project.Data
                     "CSS",
                     "JavaScript",
                     "Git",
-                    "REST API");
+                    "REST API"
+                );
 
                 AddJobSeekerSkills(
                     nimalProfile,
@@ -303,7 +345,8 @@ namespace SmartRecruitment_Project.Data
                     "ASP.NET Core",
                     "HTML",
                     "CSS",
-                    "JavaScript");
+                    "JavaScript"
+                );
 
                 AddJobSeekerSkills(
                     saraProfile,
@@ -314,12 +357,13 @@ namespace SmartRecruitment_Project.Data
                     "Git",
                     "REST API",
                     "Azure",
-                    "Docker");
+                    "Docker"
+                );
 
                 db.SaveChanges();
 
                 // ============================================================
-                // 6. TWELVE JOB VACANCIES
+                // 6. JOB VACANCIES
                 // ============================================================
 
                 JobVacancy CreateJob(
@@ -341,6 +385,7 @@ namespace SmartRecruitment_Project.Data
                         RequiredEducationLevel = education,
                         Status = status,
                         CreatedAt = now.AddDays(-createdDaysAgo),
+
                         UpdatedAt =
                             status == JobStatus.Closed
                                 ? now.AddDays(-1)
@@ -359,7 +404,8 @@ namespace SmartRecruitment_Project.Data
                     2,
                     EducationLevel.Bachelor,
                     JobStatus.Open,
-                    12);
+                    12
+                );
 
                 var fullStack = CreateJob(
                     "Full Stack .NET Developer",
@@ -371,7 +417,8 @@ namespace SmartRecruitment_Project.Data
                     3,
                     EducationLevel.Bachelor,
                     JobStatus.Open,
-                    11);
+                    11
+                );
 
                 var backendApi = CreateJob(
                     "Backend API Developer",
@@ -383,7 +430,8 @@ namespace SmartRecruitment_Project.Data
                     3,
                     EducationLevel.Bachelor,
                     JobStatus.Open,
-                    10);
+                    10
+                );
 
                 var frontend = CreateJob(
                     "Frontend Web Developer",
@@ -394,7 +442,8 @@ namespace SmartRecruitment_Project.Data
                     2,
                     EducationLevel.Diploma,
                     JobStatus.Open,
-                    9);
+                    9
+                );
 
                 var database = CreateJob(
                     "Database Developer",
@@ -405,7 +454,8 @@ namespace SmartRecruitment_Project.Data
                     2,
                     EducationLevel.Diploma,
                     JobStatus.Open,
-                    8);
+                    8
+                );
 
                 var softwareEngineer = CreateJob(
                     "Software Engineer - .NET",
@@ -416,7 +466,8 @@ namespace SmartRecruitment_Project.Data
                     4,
                     EducationLevel.Bachelor,
                     JobStatus.Open,
-                    7);
+                    7
+                );
 
                 var seniorDotNet = CreateJob(
                     "Senior .NET Developer",
@@ -428,7 +479,8 @@ namespace SmartRecruitment_Project.Data
                     5,
                     EducationLevel.Bachelor,
                     JobStatus.Open,
-                    6);
+                    6
+                );
 
                 var qaAutomation = CreateJob(
                     "QA Automation Engineer",
@@ -439,7 +491,8 @@ namespace SmartRecruitment_Project.Data
                     2,
                     EducationLevel.Diploma,
                     JobStatus.Open,
-                    5);
+                    5
+                );
 
                 var devOps = CreateJob(
                     "DevOps Engineer",
@@ -451,7 +504,8 @@ namespace SmartRecruitment_Project.Data
                     3,
                     EducationLevel.Bachelor,
                     JobStatus.Open,
-                    4);
+                    4
+                );
 
                 var dataAnalyst = CreateJob(
                     "Data Analyst",
@@ -462,7 +516,8 @@ namespace SmartRecruitment_Project.Data
                     1,
                     EducationLevel.Bachelor,
                     JobStatus.Open,
-                    3);
+                    3
+                );
 
                 var mobileDeveloper = CreateJob(
                     ".NET Mobile Developer",
@@ -473,7 +528,8 @@ namespace SmartRecruitment_Project.Data
                     2,
                     EducationLevel.Bachelor,
                     JobStatus.Open,
-                    2);
+                    2
+                );
 
                 var cloudEngineer = CreateJob(
                     "Cloud Engineer",
@@ -485,7 +541,8 @@ namespace SmartRecruitment_Project.Data
                     4,
                     EducationLevel.Bachelor,
                     JobStatus.Closed,
-                    15);
+                    15
+                );
 
                 db.JobVacancies.AddRange(
                     juniorDotNet,
@@ -499,12 +556,13 @@ namespace SmartRecruitment_Project.Data
                     devOps,
                     dataAnalyst,
                     mobileDeveloper,
-                    cloudEngineer);
+                    cloudEngineer
+                );
 
                 db.SaveChanges();
 
                 // ============================================================
-                // 7. REQUIRED SKILLS FOR VACANCIES
+                // 7. REQUIRED SKILLS FOR JOBS
                 // ============================================================
 
                 void AddJobSkills(
@@ -518,7 +576,8 @@ namespace SmartRecruitment_Project.Data
                             {
                                 JobVacancyId = vacancy.Id,
                                 SkillId = SkillOf(skillName).Id
-                            });
+                            }
+                        );
                     }
                 }
 
@@ -527,7 +586,8 @@ namespace SmartRecruitment_Project.Data
                     "C#",
                     "ASP.NET Core",
                     "Entity Framework Core",
-                    "SQL Server");
+                    "SQL Server"
+                );
 
                 AddJobSkills(
                     fullStack,
@@ -536,7 +596,8 @@ namespace SmartRecruitment_Project.Data
                     "JavaScript",
                     "HTML",
                     "CSS",
-                    "SQL Server");
+                    "SQL Server"
+                );
 
                 AddJobSkills(
                     backendApi,
@@ -544,21 +605,24 @@ namespace SmartRecruitment_Project.Data
                     "ASP.NET Core",
                     "REST API",
                     "SQL Server",
-                    "JWT");
+                    "JWT"
+                );
 
                 AddJobSkills(
                     frontend,
                     "HTML",
                     "CSS",
                     "JavaScript",
-                    "React");
+                    "React"
+                );
 
                 AddJobSkills(
                     database,
                     "SQL Server",
                     "T-SQL",
                     "Stored Procedures",
-                    "Database Design");
+                    "Database Design"
+                );
 
                 AddJobSkills(
                     softwareEngineer,
@@ -566,7 +630,8 @@ namespace SmartRecruitment_Project.Data
                     "ASP.NET Core",
                     "Git",
                     "Docker",
-                    "Azure");
+                    "Azure"
+                );
 
                 AddJobSkills(
                     seniorDotNet,
@@ -574,7 +639,8 @@ namespace SmartRecruitment_Project.Data
                     "ASP.NET Core",
                     "Entity Framework Core",
                     "SQL Server",
-                    "Azure");
+                    "Azure"
+                );
 
                 AddJobSkills(
                     qaAutomation,
@@ -582,7 +648,8 @@ namespace SmartRecruitment_Project.Data
                     "C#",
                     "JavaScript",
                     "Postman",
-                    "API Testing");
+                    "API Testing"
+                );
 
                 AddJobSkills(
                     devOps,
@@ -590,21 +657,24 @@ namespace SmartRecruitment_Project.Data
                     "Docker",
                     "Azure",
                     "CI/CD",
-                    "Linux");
+                    "Linux"
+                );
 
                 AddJobSkills(
                     dataAnalyst,
                     "SQL Server",
                     "Python",
                     "Power BI",
-                    "Excel");
+                    "Excel"
+                );
 
                 AddJobSkills(
                     mobileDeveloper,
                     "C#",
                     ".NET MAUI",
                     "REST API",
-                    "Git");
+                    "Git"
+                );
 
                 AddJobSkills(
                     cloudEngineer,
@@ -612,14 +682,13 @@ namespace SmartRecruitment_Project.Data
                     "Docker",
                     "Kubernetes",
                     "CI/CD",
-                    "Linux");
+                    "Linux"
+                );
 
                 db.SaveChanges();
 
                 // ============================================================
-                // 8. DEMO APPLICATIONS
-                // Match scores below follow the project's actual algorithm:
-                // Skills 60%, Experience 20%, Education 10%, Location 10%.
+                // 8. APPLICATIONS
                 // ============================================================
 
                 var arunJuniorApplication = new Application
@@ -708,7 +777,8 @@ namespace SmartRecruitment_Project.Data
                     arunSoftwareApplication,
                     arunDevOpsApplication,
                     nimalFullStackApplication,
-                    saraSeniorApplication);
+                    saraSeniorApplication
+                );
 
                 db.SaveChanges();
 
@@ -728,6 +798,7 @@ namespace SmartRecruitment_Project.Data
                         CreatedAt = now.AddDays(-2),
                         RespondedAt = now.AddDays(-1)
                     },
+
                     new ContactRequest
                     {
                         ApplicationId = nimalJuniorApplication.Id,
@@ -739,6 +810,7 @@ namespace SmartRecruitment_Project.Data
                         CreatedAt = now.AddDays(-2),
                         RespondedAt = now.AddHours(-16)
                     },
+
                     new ContactRequest
                     {
                         ApplicationId = saraJuniorApplication.Id,
@@ -748,10 +820,11 @@ namespace SmartRecruitment_Project.Data
                             "with the recruitment discussion.",
                         Status = ContactRequestStatus.Pending,
                         CreatedAt = now.AddHours(-6)
-                    });
+                    }
+                );
 
                 // ============================================================
-                // 10. IN-APP NOTIFICATIONS
+                // 10. NOTIFICATIONS
                 // ============================================================
 
                 db.Notifications.AddRange(
@@ -766,6 +839,7 @@ namespace SmartRecruitment_Project.Data
                         IsRead = false,
                         CreatedAt = now.AddDays(-2)
                     },
+
                     new Notification
                     {
                         UserId = nimalUser.Id,
@@ -777,6 +851,7 @@ namespace SmartRecruitment_Project.Data
                         IsRead = false,
                         CreatedAt = now.AddDays(-1)
                     },
+
                     new Notification
                     {
                         UserId = saraUser.Id,
@@ -788,6 +863,7 @@ namespace SmartRecruitment_Project.Data
                         IsRead = false,
                         CreatedAt = now.AddHours(-10)
                     },
+
                     new Notification
                     {
                         UserId = arunUser.Id,
@@ -799,6 +875,7 @@ namespace SmartRecruitment_Project.Data
                         IsRead = true,
                         CreatedAt = now.AddHours(-18)
                     },
+
                     new Notification
                     {
                         UserId = arunUser.Id,
@@ -809,6 +886,7 @@ namespace SmartRecruitment_Project.Data
                         IsRead = false,
                         CreatedAt = now.AddHours(-12)
                     },
+
                     new Notification
                     {
                         UserId = arunUser.Id,
@@ -819,6 +897,7 @@ namespace SmartRecruitment_Project.Data
                         IsRead = true,
                         CreatedAt = now.AddDays(-2)
                     },
+
                     new Notification
                     {
                         UserId = nimalUser.Id,
@@ -829,6 +908,7 @@ namespace SmartRecruitment_Project.Data
                         IsRead = true,
                         CreatedAt = now.AddDays(-2)
                     },
+
                     new Notification
                     {
                         UserId = saraUser.Id,
@@ -839,6 +919,7 @@ namespace SmartRecruitment_Project.Data
                         IsRead = false,
                         CreatedAt = now.AddHours(-6)
                     },
+
                     new Notification
                     {
                         UserId = employerUser.Id,
@@ -849,6 +930,7 @@ namespace SmartRecruitment_Project.Data
                         IsRead = false,
                         CreatedAt = now.AddDays(-1)
                     },
+
                     new Notification
                     {
                         UserId = employerUser.Id,
@@ -858,7 +940,8 @@ namespace SmartRecruitment_Project.Data
                             "Nimal Perera has declined your contact request.",
                         IsRead = false,
                         CreatedAt = now.AddHours(-16)
-                    });
+                    }
+                );
 
                 db.SaveChanges();
 

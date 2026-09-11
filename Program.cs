@@ -24,13 +24,17 @@ namespace SmartRecruitment_Project
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+
             // ==========================================
             // Database Connection
             // ==========================================
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(
-                    builder.Configuration.GetConnectionString(
-                        "DefaultConnection")));
+                    builder.Configuration.GetConnectionString("DefaultConnection")
+                )
+            );
 
             // ==========================================
             // Controllers
@@ -55,7 +59,7 @@ namespace SmartRecruitment_Project
             }
 
             // ==========================================
-            // Matching Options - Member 4
+            // Matching Options
             // ==========================================
             builder.Services.Configure<MatchingOptions>(
                 builder.Configuration.GetSection(
@@ -97,7 +101,7 @@ namespace SmartRecruitment_Project
             builder.Services.AddAuthorization();
 
             // ==========================================
-            // Member 1 - Authentication
+            // Authentication
             // ==========================================
             builder.Services.AddScoped<
                 IAuthRepository,
@@ -112,7 +116,7 @@ namespace SmartRecruitment_Project
                 JwtTokenService>();
 
             // ==========================================
-            // Member 2 - Job Seeker / CV
+            // Job Seeker / CV
             // ==========================================
             builder.Services.AddScoped<
                 IJobSeekerRepository,
@@ -127,7 +131,7 @@ namespace SmartRecruitment_Project
                 LocalFileStorageService>();
 
             // ==========================================
-            // Member 3 - Employer / Jobs
+            // Employer / Jobs
             // ==========================================
             builder.Services.AddScoped<
                 IEmployerRepository,
@@ -146,8 +150,7 @@ namespace SmartRecruitment_Project
                 JobService>();
 
             // ==========================================
-            // Member 4 - Matching / Job Discovery /
-            // Applications
+            // Matching / Applications
             // ==========================================
             builder.Services.AddScoped<
                 IMatchingService,
@@ -170,10 +173,8 @@ namespace SmartRecruitment_Project
                 JobDiscoveryService>();
 
             // ==========================================
-            // Member 5 - Contact Requests /
-            // Notifications / Admin
+            // Contact Requests / Notifications / Admin
             // ==========================================
-
             builder.Services.AddScoped<
                 IContactRequestRepository,
                 ContactRequestRepository>();
@@ -236,16 +237,18 @@ namespace SmartRecruitment_Project
             });
 
             // ==========================================
-            // CORS Policy for Frontend Development
+            // CORS
             // ==========================================
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowFrontend", policy =>
-                {
-                    policy.AllowAnyOrigin()
-                          .AllowAnyHeader()
-                          .AllowAnyMethod();
-                });
+                options.AddPolicy(
+                    "AllowFrontend",
+                    policy =>
+                    {
+                        policy.AllowAnyOrigin()
+                              .AllowAnyHeader()
+                              .AllowAnyMethod();
+                    });
             });
 
             // ==========================================
@@ -254,18 +257,82 @@ namespace SmartRecruitment_Project
             var app = builder.Build();
 
             // ==========================================
-            // Demo Database Seed
-            // ==========================================  
-            if (app.Environment.IsDevelopment())
+            // Database + Admin Account
+            // ==========================================
+            using (var scope = app.Services.CreateScope())
             {
-                using var scope = app.Services.CreateScope();
-
                 var db = scope.ServiceProvider
                     .GetRequiredService<AppDbContext>();
 
                 db.Database.Migrate();
 
-                DbSeeder.Seed(db);
+                const string adminEmail =
+                    "admin.smartrecruitment@gmail.com";
+
+                const string adminPassword =
+                    "Demo@123";
+
+                var adminUser = db.Users
+                    .FirstOrDefault(
+                        x => x.Email == adminEmail);
+
+                if (adminUser == null)
+                {
+                    adminUser =
+                        new SmartRecruitment_Project.Models.User
+                        {
+                            Email = adminEmail,
+
+                            Role =
+                                SmartRecruitment_Project
+                                    .Models.Enums
+                                    .UserRole.Administrator,
+
+                            IsActive = true,
+
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                    db.Users.Add(adminUser);
+                }
+
+                adminUser.Email = adminEmail;
+
+                adminUser.Role =
+                    SmartRecruitment_Project
+                        .Models.Enums
+                        .UserRole.Administrator;
+
+                adminUser.IsActive = true;
+
+                var passwordHasher =
+                    new Microsoft.AspNetCore.Identity
+                        .PasswordHasher<
+                            SmartRecruitment_Project.Models.User>();
+
+                adminUser.PasswordHash =
+                    passwordHasher.HashPassword(
+                        adminUser,
+                        adminPassword);
+
+                db.SaveChanges();
+
+                Console.WriteLine(
+                    $"ADMIN READY: {adminUser.Email} - {adminUser.Role}");
+
+                if (app.Environment.IsDevelopment())
+                {
+                    try
+                    {
+                        DbSeeder.Seed(db);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(
+                            "DEMO SEED ERROR: " +
+                            ex.Message);
+                    }
+                }
             }
 
             // ==========================================
@@ -273,8 +340,14 @@ namespace SmartRecruitment_Project
             // ==========================================
             app.UseMiddleware<GlobalExceptionMiddleware>();
 
+            // ==========================================
+            // CORS
+            // ==========================================
             app.UseCors("AllowFrontend");
 
+            // ==========================================
+            // Static Files
+            // ==========================================
             app.UseDefaultFiles();
             app.UseStaticFiles();
 
@@ -293,12 +366,9 @@ namespace SmartRecruitment_Project
             app.UseHttpsRedirection();
 
             app.UseAuthentication();
-
             app.UseAuthorization();
 
             app.MapControllers();
-
-            
 
             app.Run();
         }
