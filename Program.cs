@@ -48,7 +48,7 @@ namespace SmartRecruitment_Project
                 builder.Configuration.GetSection("Jwt"));
 
             var jwtSettings =
-                builder.Configuration.GetSection("Jwt");
+    builder.Configuration.GetSection("Jwt");
 
             var jwtKey = jwtSettings["Key"];
 
