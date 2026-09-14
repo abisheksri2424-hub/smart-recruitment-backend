@@ -6,12 +6,12 @@ namespace SmartRecruitment_Project.Data
 {
     public static class DbSeeder
     {
-        public const string DemoPassword = "Demo@123";
+        public const string DemoPassword = "Admin@123";
 
         public static void Seed(AppDbContext db)
         {
             const string employerEmail = "employer.demo@smart.local";
-            const string administratorEmail = "admin.smartrecruitment@gmail.com";
+            const string administratorEmail = "admin24@gmail.com";
 
             // ============================================================
             // MAKE SURE SEPARATE ADMIN ACCOUNT ALWAYS EXISTS
